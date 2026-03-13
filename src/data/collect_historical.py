@@ -1,52 +1,33 @@
 import os
-import zipfile
-import subprocess
+from dotenv import load_dotenv
+load_dotenv()
+
+import kagglehub
+import shutil
 import pandas as pd
 
-def fetch_historical_launches():
-    # The Kaggle dataset ID for "All Space Missions from 1957"
-    dataset_name = "agilesif/space-missions-1957"
-    output_dir = "data/raw"
-    os.makedirs(output_dir, exist_ok=True)
-    expected_file = os.path.join(output_dir, "Space_Corrected.csv")
+def download_dataset():
+    dataset_handle = "agilesif/space-missions-1957"
+    dest_path = "data/raw/"
     
-    if os.path.exists(expected_file):
-        print(f"Dataset already exists at {expected_file}. Skipping download.")
-        df = pd.read_csv(expected_file)
-        print(f"Total historical launches fetched: {len(df)}")
-        return
-
-    print("Attempting to download Kaggle dataset using kaggle CLI...")
-    try:
-        # Try to run the kaggle cli
-        result = subprocess.run(
-            ["kaggle", "datasets", "download", "-d", dataset_name, "-p", output_dir, "--unzip"], 
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            print("Dataset downloaded and extracted successfully.")
-        else:
-            print("Kaggle CLI failed. Error output:")
-            print(result.stdout)
-            print(result.stderr)
-            raise Exception("Kaggle CLI download failed.")
-    except Exception as e:
-        print(f"Error: {e}")
-        print("--------------------------------------------------")
-        print("Please ensure you have your Kaggle API credentials set up.")
-        print("1. Go to kaggle.com -> Account -> Create New API Token (kaggle.json)")
-        print("2. Place kaggle.json in ~/.kaggle/ (or C:\\Users\\<Username>\\.kaggle\\)")
-        print("Alternatively, download manually from:")
-        print("https://www.kaggle.com/datasets/agilesif/space-missions-1957")
-        print("and extract 'Space_Corrected.csv' into 'data/raw/'")
-        print("--------------------------------------------------")
-        return
+    # 1. 최신 방식으로 데이터셋 다운로드 (자동 인증 및 캐싱)
+    print(f"Attempting to download {dataset_handle} using kagglehub...")
+    path = kagglehub.dataset_download(dataset_handle)
     
-    if os.path.exists(expected_file):
-        df = pd.read_csv(expected_file)
+    # 2. 다운로드된 파일을 프로젝트의 data/raw/ 폴더로 복사
+    os.makedirs(dest_path, exist_ok=True)
+    filename = "Space_Corrected.csv"
+    
+    # 캐시 폴더에서 실제 프로젝트 폴더로 파일 이동/복사
+    src_file = os.path.join(path, filename)
+    if os.path.exists(src_file):
+        shutil.copy(src_file, os.path.join(dest_path, filename))
+        print(f"Successfully moved {filename} to {dest_path}")
+        
+        df = pd.read_csv(os.path.join(dest_path, filename))
         print(f"Total historical launches fetched: {len(df)}")
     else:
-        print(f"Could not find the expected file {expected_file} after download.")
+        print(f"Error: {filename} not found in downloaded files.")
 
 if __name__ == "__main__":
-    fetch_historical_launches()
+    download_dataset()

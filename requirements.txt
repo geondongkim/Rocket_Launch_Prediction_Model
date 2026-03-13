@@ -8,3 +8,4 @@ seaborn
 requests
 python-dotenv
 kaggle
+kagglehub
