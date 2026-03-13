@@ -7,7 +7,7 @@ import shutil
 import pandas as pd
 
 def download_dataset():
-    dataset_handle = "agilesif/space-missions-1957"
+    dataset_handle = "agirlcoding/all-space-missions-from-1957"
     dest_path = "data/raw/"
     
     # 1. 최신 방식으로 데이터셋 다운로드 (자동 인증 및 캐싱)
