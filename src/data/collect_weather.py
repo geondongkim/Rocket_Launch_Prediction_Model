@@ -13,28 +13,28 @@ def geocode_locations(locations):
     
     for loc in tqdm(locations):
         try:
-            # Try to geocode the full string
+            # 전체 주소 문자열로 지오코딩 시도
             location_info = geolocator.geocode(loc)
             if location_info:
                 lat_lon_map[loc] = (location_info.latitude, location_info.longitude)
             else:
-                # If failed, try with just the country/state
+                # 실패 시 국가/주 단위로 축약해서 재시도
                 parts = [p.strip() for p in loc.split(',')]
                 fallback = ", ".join(parts[-2:]) if len(parts) >= 2 else loc
                 location_info = geolocator.geocode(fallback)
                 if location_info:
                     lat_lon_map[loc] = (location_info.latitude, location_info.longitude)
                 else:
-                    # Final fallback: Just the country
+                    # 최후 수단: 국가명만으로 재시도
                     fallback_country = parts[-1]
                     location_info = geolocator.geocode(fallback_country)
                     if location_info:
                         lat_lon_map[loc] = (location_info.latitude, location_info.longitude)
                     else:
                         lat_lon_map[loc] = (None, None)
-            time.sleep(1)  # Respect Nominatim limits
+            time.sleep(1)  # API 요청 속도 제한 준수
         except Exception as e:
-            print(f"Error geocoding {loc}: {e}")
+            print(f"{loc} 지오코딩 오류: {e}")
             lat_lon_map[loc] = (None, None)
             time.sleep(1)
             
@@ -80,7 +80,7 @@ def main():
         return
         
     df = pd.read_csv(historical_path)
-    # Deduplicate purely identical location/date pairs
+    # 동일한 발사 위치/날짜 중복 제거
     df['Datum_YMD'] = pd.to_datetime(df['Datum'], format='mixed', utc=True).dt.strftime('%Y-%m-%d')
     unique_launches = df[['Location', 'Datum', 'Datum_YMD']].drop_duplicates()
     
@@ -90,18 +90,18 @@ def main():
     unique_launches['latitude'] = unique_launches['Location'].apply(lambda l: lat_lon_map.get(l, (None, None))[0])
     unique_launches['longitude'] = unique_launches['Location'].apply(lambda l: lat_lon_map.get(l, (None, None))[1])
     
-    print(f"Fetching weather for {len(unique_launches)} unique launches...")
+    print(f"{len(unique_launches)}개 고유 발사 기록에 대한 날씨 데이터 수집 중...")
     
-    # Setup connection pooling for faster HTTP requests
+    # HTTP 커넥션 풀링 설정 (속도 향상)
     session = requests.Session()
     adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10, max_retries=3)
     session.mount('https://', adapter)
     
     weather_results = []
     
-    # Process concurrently (Open-Meteo allows concurrency, max 10 to be safe)
+    # Open-Meteo 동시 요청 지원, 최대 10개 스레드 병륬 실행
     with ThreadPoolExecutor(max_workers=10) as executor:
-        # submit all tasks
+        # 모든 작업 제시
         futures = [executor.submit(fetch_weather_single, row, session) for _, row in unique_launches.iterrows()]
         
         for future in tqdm(as_completed(futures), total=len(futures)):

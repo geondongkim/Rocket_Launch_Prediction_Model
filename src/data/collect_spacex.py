@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import os
 
-# SpaceX Launches (v4) API
+# SpaceX 발사 데이터 v4 API 엔드포인트
 API_URL = "https://api.spacexdata.com/v4/launches"
 
 def fetch_spacex_launches():
@@ -11,7 +11,7 @@ def fetch_spacex_launches():
     response.raise_for_status()
     data = response.json()
     
-    # Extract relevant fields
+    # 필요한 필드만 추출
     launches = []
     for item in data:
         launch = {
@@ -28,10 +28,10 @@ def fetch_spacex_launches():
         launches.append(launch)
         
     df = pd.DataFrame(launches)
-    print(f"Total SpaceX launches fetched: {len(df)}")
+    print(f"SpaceX 발사 데이터 수집 완료: {len(df)}건")
     
-    # Optional: fetch launchpad coordinates
-    print("Fetching launchpad details...")
+    # 발사 패드 좌표 정보 추가 수집
+    print("발사 패드 상세 정보 수집 중...")
     pad_url = "https://api.spacexdata.com/v4/launchpads"
     pad_response = requests.get(pad_url)
     pad_response.raise_for_status()
@@ -45,7 +45,7 @@ def fetch_spacex_launches():
             'longitude': pad.get('longitude')
         }
         
-    # Merge pad details into launches dataframe
+    # 발사 패드 정보를 발사 데이터프레임에 병합
     def get_pad_info(pad_id, info_type):
         if pd.isna(pad_id) or pad_id not in pads:
             return None

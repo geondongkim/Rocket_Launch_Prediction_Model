@@ -43,7 +43,7 @@ def main():
     hist_df = pd.read_csv(hist_path) if os.path.exists(hist_path) else pd.DataFrame()
     weather_df = pd.read_csv(weather_path) if os.path.exists(weather_path) else pd.DataFrame()
 
-    # 1. Process Historical Data
+    # 1. 역사 데이터 정제
     hist_clean = pd.DataFrame()
     if not hist_df.empty:
         hist_clean['Date'] = pd.to_datetime(hist_df['Datum'], format='mixed', utc=True)
@@ -51,16 +51,16 @@ def main():
         hist_clean['Location'] = hist_df['Location']
         hist_clean['Rocket'] = hist_df['Detail']
         
-        # Binary target: 1 for Success, 0 otherwise
+        # 이진 타겟: 성공=1, 나머지=0
         hist_clean['Success'] = hist_df['Status Mission'].apply(lambda x: 1 if x == 'Success' else 0)
-        hist_clean['Source'] = 'Historical'
+        hist_clean['Source'] = '\uad50리데이터'
         
-        # Merge weather
-        # Create a matching key
+        # 날씨 데이터 병합
+        # 병합용 키 생성
         hist_df['Date_Key'] = pd.to_datetime(hist_df['Datum'], format='mixed', utc=True)
         weather_df['Date_Key'] = pd.to_datetime(weather_df['Datum'], format='mixed', utc=True, errors='coerce')
         
-        # Merge by Location and Date_Key
+        # 몹록을 Location과 Date_Key로 병합
         hist_weather_merged = pd.merge(
             hist_clean.assign(Date_Key=hist_clean['Date']),
             weather_df[['Location', 'Date_Key', 'temperature_2m_mean', 'precipitation_sum', 'wind_speed_10m_max']].dropna(subset=['Date_Key']),
@@ -69,15 +69,15 @@ def main():
         )
         hist_clean = hist_weather_merged.drop(columns=['Date_Key'])
 
-    # 2. Process SpaceX Data
+    # 2. SpaceX 데이터 정제
     spacex_clean = pd.DataFrame()
     if not spacex_df.empty:
         spacex_clean['Date'] = pd.to_datetime(spacex_df['date_utc'], utc=True)
         spacex_clean['Company'] = 'SpaceX'
         spacex_clean['Location'] = spacex_df['pad_name']
-        spacex_clean['Rocket'] = spacex_df['rocket'] # IDs, could be mapped but fine for now
+        spacex_clean['Rocket'] = spacex_df['rocket'] # ID값 기록, 이후 매핑 가능
         
-        # Binary target: 1 for True, 0 for False/NaN
+        # 이진 타겟: True=1, False/NaN=0
         spacex_clean['Success'] = spacex_df['success'].apply(lambda x: 1 if x == True else 0)
         spacex_clean['Source'] = 'SpaceX API'
         
@@ -85,7 +85,7 @@ def main():
         spacex_clean['longitude'] = spacex_df['longitude']
         
         # SpaceX doesn't have weather yet, let's fetch it inline
-        print("Fetching missing weather for SpaceX launches...")
+        print("SpaceX 발사 노선의 날씨 데이터 수집 중...")
         session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10, max_retries=3)
         session.mount('https://', adapter)
@@ -113,20 +113,20 @@ def main():
                 
         spacex_clean.drop(columns=['latitude', 'longitude'], inplace=True)
 
-    # 3. Combine DataFrames
+    # 3. 데이터프레임 합치
     combined_df = pd.concat([hist_clean, spacex_clean], ignore_index=True)
     
-    # 4. Feature Engineering
-    # Extract Month and Year
+    # 4. 피처 엔지니어링
+    # 연도와 월 추출
     combined_df['Year'] = combined_df['Date'].dt.year
     combined_df['Month'] = combined_df['Date'].dt.month
     combined_df['DayOfWeek'] = combined_df['Date'].dt.dayofweek
     
-    # Extract Country from Location (approximate)
+    # 위치 문자열에서 국가 추출 (근사치)
     combined_df['Country'] = combined_df['Location'].astype(str).apply(lambda x: x.split(',')[-1].strip())
     
-    # Handle missing values
-    # For numeric weather data, we can impute with median
+    # 결측치 처리
+    # 수치형 날씨 데이터는 중앙값으로 대체입력
     weather_cols = ['temperature_2m_mean', 'precipitation_sum', 'wind_speed_10m_max']
     for col in weather_cols:
         median_val = combined_df[col].median()
