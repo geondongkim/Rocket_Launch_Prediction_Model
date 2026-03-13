@@ -1,0 +1,25 @@
+# Environments
+venv/
+env/
+.env
+
+# Cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.xlsx
+
+# Checkpoints
+models/
+*.pkl
+*.h5
+*.joblib
+
+# OS generated files
+.DS_Store
+Thumbs.db
