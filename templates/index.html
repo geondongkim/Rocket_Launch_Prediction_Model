@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}대시보드 — 로켓 발사 예측 모델{% endblock %}
+{% block page_title %}대시보드{% endblock %}
+
+{% block content %}
+<!-- 요약 카드 4개 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-card--blue">
+      <div class="stat-icon"><i class="bi bi-rocket-takeoff-fill"></i></div>
+      <div class="stat-value">4,500+</div>
+      <div class="stat-label">총 발사 기록</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-card--green">
+      <div class="stat-icon"><i class="bi bi-cpu-fill"></i></div>
+      <div class="stat-value">5</div>
+      <div class="stat-label">학습된 모델</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-card--purple">
+      <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <div class="stat-value">
+        {% if best_model %}{{ (best_model['Accuracy'] * 100) | round(1) }}%{% else %}—{% endif %}
+      </div>
+      <div class="stat-label">최고 정확도</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-card--orange">
+      <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
+      <div class="stat-value">
+        {% if best_model %}{{ best_model['Model'] }}{% else %}—{% endif %}
+      </div>
+      <div class="stat-label">최고 성능 모델 (ROC-AUC)</div>
+    </div>
+  </div>
+</div>
+
+<!-- 모델 성능 비교표 -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi bi-table text-primary"></i>
+    <strong>모델 성능 비교표</strong>
+    <span class="ms-auto badge bg-secondary">ROC-AUC 기준 정렬</span>
+  </div>
+  <div class="card-body p-0">
+    {% if model_data %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>모델</th>
+            <th class="text-center">정확도</th>
+            <th class="text-center">정밀도</th>
+            <th class="text-center">재현율</th>
+            <th class="text-center">F1-Score</th>
+            <th class="text-center">ROC-AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in model_data %}
+          <tr {% if loop.first %}class="table-success fw-bold"{% endif %}>
+            <td>
+              {% if loop.first %}<i class="bi bi-award-fill text-warning me-1"></i>{% endif %}
+              {{ row['Model'] }}
+            </td>
+            <td class="text-center">{{ (row['Accuracy'] * 100) | round(2) }}%</td>
+            <td class="text-center">{{ (row['Precision'] * 100) | round(2) }}%</td>
+            <td class="text-center">{{ (row['Recall'] * 100) | round(2) }}%</td>
+            <td class="text-center">{{ row['F1-Score'] }}</td>
+            <td class="text-center">
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:8px;">
+                  <div class="progress-bar bg-primary" style="width:{{ (row['ROC-AUC'] * 100) | round(0) }}%"></div>
+                </div>
+                <span class="small">{{ row['ROC-AUC'] }}</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="bi bi-exclamation-circle fs-3 d-block mb-2"></i>
+      모델 비교 데이터가 없습니다. <code>src/models/evaluate.py</code>를 먼저 실행해주세요.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 주요 인사이트 카드 3개 -->
+<h5 class="mb-3"><i class="bi bi-lightbulb-fill text-warning me-2"></i>주요 인사이트</h5>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card insight-card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="insight-icon text-primary mb-2"><i class="bi bi-calendar3-fill fs-2"></i></div>
+        <h6 class="card-title fw-bold">발사 연도(Year)가 가장 중요</h6>
+        <p class="card-text text-muted small">
+          모든 트리 기반 모델(Random Forest, LightGBM, XGBoost)의 피처 중요도에서
+          <strong>Year</strong>가 압도적 1위를 차지했습니다.
+          시간이 지날수록 로켓 기술이 발전해 성공률이 극적으로 향상되었기 때문입니다.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card insight-card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="insight-icon text-success mb-2"><i class="bi bi-globe-asia-australia fs-2"></i></div>
+        <h6 class="card-title fw-bold">국가·기업별 성공률 차이</h6>
+        <p class="card-text text-muted small">
+          러시아, 미국 순으로 안정적인 성공률을 보였습니다.
+          특정 발사장과 운영 기업 간에도 눈에 띄는 성공률 차이가 존재하며,
+          이는 운영 경험과 인프라 수준을 반영합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card insight-card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="insight-icon text-info mb-2"><i class="bi bi-cloud-rain-fill fs-2"></i></div>
+        <h6 class="card-title fw-bold">날씨는 보조적 요인</h6>
+        <p class="card-text text-muted small">
+          <strong>온도(temperature_2m_mean)</strong>와
+          <strong>최대 풍속(wind_speed_10m_max)</strong>이 예측에 일정 기여를 합니다.
+          극단적 악천후 시 발사가 보류(Scrub)되므로 실패 데이터 자체가 적어,
+          날씨는 절대 요인보다는 부수적 요인으로 작용합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 빠른 이동 버튼 -->
+<div class="d-flex gap-2 flex-wrap">
+  <a href="{{ url_for('eda') }}" class="btn btn-outline-primary">
+    <i class="bi bi-bar-chart-line me-1"></i>EDA 시각화 보기
+  </a>
+  <a href="{{ url_for('model_results') }}" class="btn btn-outline-success">
+    <i class="bi bi-clipboard-data me-1"></i>모델 평가 결과 보기
+  </a>
+  <a href="{{ url_for('predict') }}" class="btn btn-primary">
+    <i class="bi bi-rocket-takeoff me-1"></i>발사 성공 예측하기
+  </a>
+</div>
+{% endblock %}

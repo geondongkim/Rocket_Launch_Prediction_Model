@@ -10,3 +10,5 @@ python-dotenv
 kaggle
 kagglehub
 geopy
+flask
+joblib

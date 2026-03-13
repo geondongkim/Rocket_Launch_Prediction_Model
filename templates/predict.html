@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}발사 예측 — 로켓 발사 예측 모델{% endblock %}
+{% block page_title %}로켓 발사 성공 예측{% endblock %}
+
+{% block content %}
+<p class="text-muted mb-4">
+  발사 조건(연도, 국가, 기상 정보 등)을 입력하면 학습된 모델이 성공 가능성을 예측합니다.
+</p>
+
+<div class="row g-4">
+  <!-- 입력 폼 -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-sliders2 text-primary"></i>
+        <strong>발사 조건 입력</strong>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('predict') }}" id="predictForm">
+
+          <!-- 모델 선택 -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">예측 모델 선택</label>
+            <select name="model_name" class="form-select">
+              {% for model in available_models %}
+              <option value="{{ model }}"
+                {% if result and result.get('model') == model.upper() %}selected{% endif %}>
+                {{ model.upper() }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <hr class="my-3" />
+          <p class="small text-muted mb-3"><i class="bi bi-calendar3 me-1"></i>날짜 정보</p>
+
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label small">연도</label>
+              <input type="number" name="year" class="form-control" min="1957" max="2030"
+                     value="{{ result.input.Year[0] if result and result.input else 2024 }}" required />
+            </div>
+            <div class="col-4">
+              <label class="form-label small">월 (1-12)</label>
+              <input type="number" name="month" class="form-control" min="1" max="12"
+                     value="{{ result.input.Month[0] if result and result.input else 5 }}" required />
+            </div>
+            <div class="col-4">
+              <label class="form-label small">요일 (0=월요일)</label>
+              <input type="number" name="day_of_week" class="form-control" min="0" max="6"
+                     value="{{ result.input.DayOfWeek[0] if result and result.input else 2 }}" required />
+            </div>
+          </div>
+
+          <hr class="my-3" />
+          <p class="small text-muted mb-3"><i class="bi bi-geo-alt me-1"></i>발사 위치 정보</p>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small">국가</label>
+              <input type="text" name="country" class="form-control" placeholder="예: USA, Russia"
+                     value="{{ result.input.Country[0] if result and result.input else 'USA' }}" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label small">회사</label>
+              <input type="text" name="company" class="form-control" placeholder="예: SpaceX, NASA"
+                     value="{{ result.input.Company_Grp[0] if result and result.input else 'SpaceX' }}" required />
+            </div>
+          </div>
+
+          <hr class="my-3" />
+          <p class="small text-muted mb-3"><i class="bi bi-cloud-sun me-1"></i>기상 조건</p>
+
+          <div class="row g-2 mb-4">
+            <div class="col-4">
+              <label class="form-label small">평균 온도 (°C)</label>
+              <input type="number" step="0.1" name="temperature" class="form-control"
+                     value="{{ result.input.temperature_2m_mean[0] if result and result.input else 22.5 }}" required />
+            </div>
+            <div class="col-4">
+              <label class="form-label small">강수량 (mm)</label>
+              <input type="number" step="0.1" name="precipitation" class="form-control" min="0"
+                     value="{{ result.input.precipitation_sum[0] if result and result.input else 0.0 }}" required />
+            </div>
+            <div class="col-4">
+              <label class="form-label small">최대 풍속 (km/h)</label>
+              <input type="number" step="0.1" name="wind_speed" class="form-control" min="0"
+                     value="{{ result.input.wind_speed_10m_max[0] if result and result.input else 15.2 }}" required />
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-rocket-takeoff me-2"></i>발사 성공 예측하기
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 패널 -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-clipboard-check text-success"></i>
+        <strong>예측 결과</strong>
+      </div>
+      <div class="card-body d-flex flex-column justify-content-center">
+        {% if result %}
+          {% if result.get('error') %}
+            <div class="alert alert-danger">
+              <i class="bi bi-x-circle me-2"></i>{{ result.error }}
+            </div>
+          {% else %}
+            <div class="prediction-result text-center py-3">
+              <div class="result-badge mb-3
+                {% if result.prediction == 1 %}result-badge--success{% else %}result-badge--failure{% endif %}">
+                <span class="fs-1">{% if result.prediction == 1 %}🚀{% else %}💥{% endif %}</span>
+              </div>
+              <h2 class="fw-bold mb-1
+                {% if result.prediction == 1 %}text-success{% else %}text-danger{% endif %}">
+                {{ result.label }}
+              </h2>
+              {% if result.probability is not none %}
+              <p class="text-muted mb-3">성공 확률</p>
+              <div class="progress mb-2" style="height:20px; border-radius:10px;">
+                <div class="progress-bar
+                  {% if result.probability >= 70 %}bg-success{% elif result.probability >= 40 %}bg-warning{% else %}bg-danger{% endif %}
+                  fw-bold"
+                  style="width:{{ result.probability }}%; font-size:0.85rem;">
+                  {{ result.probability }}%
+                </div>
+              </div>
+              <small class="text-muted">모델: {{ result.model }}</small>
+              {% endif %}
+            </div>
+
+            <!-- 입력 요약 -->
+            <hr />
+            <p class="small fw-semibold mb-2">입력 요약</p>
+            <div class="row g-1">
+              {% for k, v in result.input.items() %}
+              <div class="col-6">
+                <span class="badge bg-light text-dark border w-100 text-start p-2">
+                  <strong>{{ k }}:</strong> {{ v[0] }}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-rocket fs-1 d-block mb-3 opacity-25"></i>
+            <p>왼쪽 폼에 발사 조건을 입력하고<br /><strong>예측하기</strong> 버튼을 눌러주세요.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
